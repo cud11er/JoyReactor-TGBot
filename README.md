@@ -14,7 +14,8 @@
    pip install -r requirements.txt
 
 2. Создайте файл .env в корневой директории проекта и добавьте в него свой API токен Telegram:
-  API_TOKEN=your_telegram_bot_api_token
+    ```bash
+    API_TOKEN=your_telegram_bot_api_token
 
 3. Создайте файл cookies.json в корневой директории проекта и добавьте в него свои куки для авторизации на сайте JoyReactor. Этот файл должен иметь следующую структуру:
 
