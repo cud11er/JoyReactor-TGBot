@@ -22,7 +22,7 @@
    [
     {
         "domain": "joyreactor.cc",
-        "expirationDate": 1720801968.280742,
+        "expirationDate": "your_expuration_date_here",
         "hostOnly": true,
         "httpOnly": true,
         "name": "joyreactor_sess4",
@@ -35,7 +35,7 @@
     }
    ]
 
-Замените "your_cookie_value_here" на ваше актуальное значение куки.
+Замените "your_cookie_value_here" и "your_expuration_date_here" на ваше актуальное значение куки.
 
 ## Использование
 
