@@ -30,7 +30,7 @@
         "path": "/",
         "sameSite": null,
         "secure": false,
-        "session": false,
+        "session": true,
         "storeId": null,
         "value": "your_cookie_value_here"
     }
