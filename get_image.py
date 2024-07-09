@@ -1,13 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 import os
-from urllib.parse import urljoin, urlencode
-import logging
+from urllib.parse import urljoin, urlencode, unquote
 import re
-import base64
-
-# Настройка логирования
-logging.basicConfig(level=logging.INFO)
 
 # Функция для получения HTML кода страницы по заданному URL
 def get_html(url):
@@ -18,14 +13,8 @@ def get_html(url):
     if response.status_code == 200:
         return response.text
     else:
-        logging.error(f'Error {response.status_code} occurred while fetching URL: {url}')
+        print(f'Error {response.status_code} occurred.')
         return None
-
-# Функция для очистки имени файла от недопустимых символов и ограничения длины имени файла
-def clean_filename(url):
-    # Используем base64 для кодирования имени файла
-    base64_filename = base64.urlsafe_b64encode(url.encode()).decode()[:255]
-    return re.sub(r'[\\/*?:"<>|]', "_", base64_filename)
 
 # Функция для сохранения изображения
 def save_image_from_url(img_url, file_path):
@@ -36,9 +25,17 @@ def save_image_from_url(img_url, file_path):
             with open(file_path, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
-        logging.info(f'Saved image: {file_path}')
+        print(f'Saved image: {file_path}')
     except Exception as e:
-        logging.error(f'Error saving image {img_url}: {e}')
+        print(f'Error saving image {img_url}: {e}')
+
+# Функция для очистки имени файла
+def clean_filename(filename):
+    # Декодируем URL, чтобы получить нормальный текст
+    filename = unquote(filename)
+    # Удаляем недопустимые символы
+    filename = re.sub(r'[\\/*?:"<>|]', "", filename)
+    return filename
 
 # Функция для парсинга страницы и извлечения ссылок на изображения
 def fetch_images_from_joyreactor(search_query, tags):
@@ -49,13 +46,12 @@ def fetch_images_from_joyreactor(search_query, tags):
         # Формируем параметры запроса
         params = {
             'q': search_query,
-            'user': '',
             'tags': ', '.join(tags)
         }
 
         # Формируем полный URL для запроса
         full_url = base_url + urlencode(params, safe=',')
-        logging.info(f'Search URL: {full_url}')
+        print(f'Search URL: {full_url}')
 
         # Получаем HTML страницы с результатами поиска
         html = get_html(full_url)
@@ -76,11 +72,11 @@ def fetch_images_from_joyreactor(search_query, tags):
                                 images.append({'imageUrl': img_url})
                 return images
             else:
-                logging.warning('No post list found on the page.')
+                print('No post list found.')
                 return None
         else:
-            logging.error('HTML content not retrieved.')
+            print('HTML content not retrieved.')
             return None
     except Exception as e:
-        logging.error(f'Error fetching images: {e}')
+        print(f'Error fetching images: {e}')
         return None

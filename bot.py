@@ -14,15 +14,15 @@ API_TOKEN = os.getenv('API_TOKEN')
 # Создание экземпляра бота
 bot = telebot.TeleBot(API_TOKEN)
 
-# Глобальные переменные для хранения текущего запроса и тегов пользователя
-user_search_query = ''
-user_tags = []
-
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 
 # Экземпляр ThreadPoolExecutor для асинхронной обработки изображений
 executor = ThreadPoolExecutor(max_workers=5)
+
+# Глобальные переменные для хранения текущего запроса и тегов пользователя
+user_search_query = None
+user_tags = []
 
 # Функция для получения и отправки изображений
 def send_images(search_query, tags, chat_id):
@@ -57,32 +57,31 @@ def send_images(search_query, tags, chat_id):
 # Обработчик команды /start
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    global user_search_query, user_tags
-    user_search_query = ''
-    user_tags = []
-    bot.reply_to(message, "Привет! Отправь мне ключевое слово для поиска изображений.")
+    bot.reply_to(message, ("Привет! Отправь мне ключевое слово для поиска изображений (или оставь пустым) "
+                           "и теги через запятую (или оставь пустыми). Формат: ключевое слово, тег1, тег2 и т.д.\n"
+                           "Примеры:\n"
+                           "'Собака улыбка (Если теги не нужны - просто ключевое слово)'\n"
+                           "' , тег1, тег2' (если ключевое слово не нужно - сначала пробел с запятой, потом теги)"))
 
 # Обработчик текстовых сообщений
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     global user_search_query, user_tags
 
-    if not user_search_query:
-        # Если пользователь не ввел ключевое слово, сохраняем его в переменную user_search_query
-        user_search_query = message.text
-        bot.reply_to(message, "Теперь введи один или несколько тегов через запятую для поиска изображений.")
+    try:
+        # Разделение сообщения на ключевое слово и теги
+        parts = message.text.split(',')
+        user_search_query = parts[0].strip() if parts[0].strip() else ''
+        user_tags = [tag.strip() for tag in parts[1:] if tag.strip()] if len(parts) > 1 else []
 
-    elif not user_tags:
-        # Если пользователь ввел ключевое слово, сохраняем теги в переменную user_tags
-        user_tags = [tag.strip() for tag in message.text.split(',')]
         bot.reply_to(message, "Получил запрос. Ищу изображения...")
 
         # Вызываем функцию отправки изображений асинхронно
         executor.submit(send_images, user_search_query, user_tags, message.chat.id)
 
-        # Сбрасываем переменные для следующего запроса
-        user_search_query = ''
-        user_tags = []
+    except Exception as e:
+        bot.reply_to(message, f"Произошла ошибка при обработке запроса: {e}")
+        logging.error(f"Error in handle_message: {e}")
 
 # Запуск бота
 bot.infinity_polling()
