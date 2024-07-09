@@ -1,7 +1,7 @@
 import telebot
 from dotenv import load_dotenv
 import os
-from get_image import save_image_from_url, fetch_images_from_joyreactor, clean_filename
+from get_image import save_image_from_url, fetch_images_from_joyreactor, clean_filename, load_cookies
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
@@ -24,11 +24,14 @@ executor = ThreadPoolExecutor(max_workers=5)
 user_search_query = None
 user_tags = []
 
+# Загрузка куки из файла
+cookies = load_cookies('cookies.json')  # Заменил на новое имя файла
+
 # Функция для получения и отправки изображений
 def send_images(search_query, tags, chat_id):
     try:
         # Вызываем функцию для парсинга и получения изображений
-        images = fetch_images_from_joyreactor(search_query, tags)
+        images = fetch_images_from_joyreactor(search_query, tags, cookies)
 
         if not images:
             bot.send_message(chat_id, "Изображения не найдены.")
@@ -48,7 +51,8 @@ def send_images(search_query, tags, chat_id):
             logging.info(f"Изображение удалено: {file_path}")
 
         # Сообщение пользователю о завершении запроса и предложении сделать новый запрос
-        bot.send_message(chat_id, "Все изображения отправлены! Отправьте новый запрос, чтобы продолжить поиск.")
+        bot.send_message(chat_id, "Все изображения отправлены! Отправьте новый запрос, чтобы продолжить поиск.\n"
+                         "Напоминаю, что Формат: ключевое слово, тег1, тег2 и т.д." )
 
     except Exception as e:
         bot.send_message(chat_id, f"Произошла ошибка: {e}")

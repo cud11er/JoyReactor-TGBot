@@ -3,13 +3,23 @@ from bs4 import BeautifulSoup
 import os
 from urllib.parse import urljoin, urlencode, unquote
 import re
+import json
 
-# Функция для получения HTML кода страницы по заданному URL
-def get_html(url):
+# Загружаем куки из файла
+def load_cookies(cookie_file):
+    with open(cookie_file, 'r') as f:
+        cookies = json.load(f)
+    cookie_dict = {}
+    for cookie in cookies:
+        cookie_dict[cookie['name']] = cookie['value']
+    return cookie_dict
+
+# Функция для получения HTML кода страницы по заданному URL с использованием куки
+def get_html(url, cookies):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, cookies=cookies)
     if response.status_code == 200:
         return response.text
     else:
@@ -38,7 +48,7 @@ def clean_filename(filename):
     return filename
 
 # Функция для парсинга страницы и извлечения ссылок на изображения
-def fetch_images_from_joyreactor(search_query, tags):
+def fetch_images_from_joyreactor(search_query, tags, cookies):
     try:
         # Базовый URL joyreactor для поиска
         base_url = 'https://joyreactor.cc/search?'
@@ -54,7 +64,7 @@ def fetch_images_from_joyreactor(search_query, tags):
         print(f'Search URL: {full_url}')
 
         # Получаем HTML страницы с результатами поиска
-        html = get_html(full_url)
+        html = get_html(full_url, cookies)
         if html:
             soup = BeautifulSoup(html, 'html.parser')
             post_list = soup.find('div', id='post_list')
@@ -80,3 +90,21 @@ def fetch_images_from_joyreactor(search_query, tags):
     except Exception as e:
         print(f'Error fetching images: {e}')
         return None
+
+# Основная функция для выполнения скрипта
+if __name__ == "__main__":
+    search_query = input("Enter search query: ")
+    tags = input("Enter tags (comma separated): ").split(',')
+    tags = [tag.strip() for tag in tags]
+
+    cookies = load_cookies('cookie.json')
+    images = fetch_images_from_joyreactor(search_query, tags, cookies)
+
+    if images:
+        for image in images:
+            image_url = image['imageUrl']
+            file_name = clean_filename(image_url.split("/")[-1])
+            file_path = os.path.join(os.getcwd(), file_name)
+            save_image_from_url(image_url, file_path)
+    else:
+        print("No images found.")
