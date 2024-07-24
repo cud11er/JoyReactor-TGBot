@@ -48,19 +48,23 @@ def clean_filename(filename):
     return filename
 
 # Функция для парсинга страницы и извлечения ссылок на изображения
-def fetch_images_from_joyreactor(search_query, tags, cookies):
+def fetch_images_from_joyreactor(search_query, tags, cookies, page=1):
     try:
-        # Базовый URL joyreactor для поиска
-        base_url = 'https://joyreactor.cc/search?'
+        # Формируем базовый URL joyreactor для поиска
+        if page == 1:
+            base_url = 'https://joyreactor.cc/search?'
+            params = {
+                'q': search_query,
+                'tags': ', '.join(tags)
+            }
+            full_url = base_url + urlencode(params, safe=',')
+        else:
+            base_url = f'https://joyreactor.cc/search/{search_query}/{page}?'
+            params = {
+                'tags': ', '.join(tags)
+            }
+            full_url = base_url + urlencode(params, safe=',')
 
-        # Формируем параметры запроса
-        params = {
-            'q': search_query,
-            'tags': ', '.join(tags)
-        }
-
-        # Формируем полный URL для запроса
-        full_url = base_url + urlencode(params, safe=',')
         print(f'Search URL: {full_url}')
 
         # Получаем HTML страницы с результатами поиска
@@ -90,6 +94,7 @@ def fetch_images_from_joyreactor(search_query, tags, cookies):
     except Exception as e:
         print(f'Error fetching images: {e}')
         return None
+
 
 # Основная функция для выполнения скрипта
 if __name__ == "__main__":

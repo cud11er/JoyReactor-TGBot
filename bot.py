@@ -1,4 +1,5 @@
 import telebot
+from telebot import types
 from dotenv import load_dotenv
 import os
 from get_image import save_image_from_url, fetch_images_from_joyreactor, clean_filename, load_cookies
@@ -23,15 +24,16 @@ executor = ThreadPoolExecutor(max_workers=5)
 # Глобальные переменные для хранения текущего запроса и тегов пользователя
 user_search_query = None
 user_tags = []
+current_page = 1
 
 # Загрузка куки из файла
-cookies = load_cookies('cookies.json')  # Заменил на новое имя файла
+cookies = load_cookies('cookies.json')
 
 # Функция для получения и отправки изображений
-def send_images(search_query, tags, chat_id):
+def send_images(search_query, tags, chat_id, page=1):
     try:
         # Вызываем функцию для парсинга и получения изображений
-        images = fetch_images_from_joyreactor(search_query, tags, cookies)
+        images = fetch_images_from_joyreactor(search_query, tags, cookies, page)
 
         if not images:
             bot.send_message(chat_id, "Изображения не найдены.")
@@ -43,16 +45,22 @@ def send_images(search_query, tags, chat_id):
             file_path = os.path.join(os.getcwd(), file_name)
             save_image_from_url(image_url, file_path)  # Сохраняем изображение
 
-            # Отправляем изображение пользователю
-            with open(file_path, 'rb') as photo:
-                bot.send_photo(chat_id, photo)
+            # Проверяем размер файла и отправляем его соответствующим образом
+            file_size = os.path.getsize(file_path)
+            with open(file_path, 'rb') as file:
+                if file_size > 10 * 1024 * 1024:  # 10 MB
+                    bot.send_document(chat_id, file)
+                else:
+                    bot.send_photo(chat_id, file)
 
             os.remove(file_path)  # Удаляем изображение после отправки
             logging.info(f"Изображение удалено: {file_path}")
 
-        # Сообщение пользователю о завершении запроса и предложении сделать новый запрос
-        bot.send_message(chat_id, "Все изображения отправлены! Отправьте новый запрос, чтобы продолжить поиск.\n"
-                         "Напоминаю, что Формат: ключевое слово, тег1, тег2 и т.д." )
+        # Кнопки для управления страницами
+        markup = types.InlineKeyboardMarkup()
+        next_page_button = types.InlineKeyboardButton('Следующая страница', callback_data=f'next_page:{page+1}')
+        markup.add(next_page_button)
+        bot.send_message(chat_id, "Загрузить больше изображений?", reply_markup=markup)
 
     except Exception as e:
         bot.send_message(chat_id, f"Произошла ошибка: {e}")
@@ -70,22 +78,35 @@ def send_welcome(message):
 # Обработчик текстовых сообщений
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    global user_search_query, user_tags
+    global user_search_query, user_tags, current_page
 
     try:
         # Разделение сообщения на ключевое слово и теги
         parts = message.text.split(',')
         user_search_query = parts[0].strip() if parts[0].strip() else ''
         user_tags = [tag.strip() for tag in parts[1:] if tag.strip()] if len(parts) > 1 else []
+        current_page = 1
 
         bot.reply_to(message, "Получил запрос. Ищу изображения...")
 
         # Вызываем функцию отправки изображений асинхронно
-        executor.submit(send_images, user_search_query, user_tags, message.chat.id)
+        executor.submit(send_images, user_search_query, user_tags, message.chat.id, current_page)
 
     except Exception as e:
         bot.reply_to(message, f"Произошла ошибка при обработке запроса: {e}")
         logging.error(f"Error in handle_message: {e}")
+
+# Обработчик нажатий на inline-кнопки
+@bot.callback_query_handler(func=lambda call: call.data.startswith('next_page:'))
+def handle_pagination(call):
+    global current_page
+    try:
+        current_page = int(call.data.split(':')[1])
+        bot.answer_callback_query(call.id, f"Загрузка страницы {current_page}...")
+        executor.submit(send_images, user_search_query, user_tags, call.message.chat.id, current_page)
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"Произошла ошибка при загрузке страницы: {e}")
+        logging.error(f"Error in handle_pagination: {e}")
 
 # Запуск бота
 bot.infinity_polling()
